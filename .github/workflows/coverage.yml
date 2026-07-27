@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 必须拉全历史，否则 diff-cover 对比失败
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -22,21 +22,38 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest coverage diff-cover
 
+      # 1. 运行单测，生成覆盖率数据
       - name: Run tests and generate coverage
         run: |
           coverage run --source=myapp -m pytest tests/ -v
-          coverage xml  # 生成 coverage.xml
+          coverage xml
+          coverage html  # 生成全量覆盖率 HTML
 
-      - name: Check incremental coverage & generate HTML
+      # 2. 生成增量覆盖率 HTML（先生成报告）
+      - name: Generate incremental coverage HTML
         run: |
           diff-cover coverage.xml \
             --compare-branch=origin/main \
-            --fail-under=10 \
             --html-report diff_coverage.html
 
-      - name: Upload HTML coverage report
+      # 3. 上传所有 HTML 报告（先上传，再卡点）
+      - name: Upload all coverage reports
         uses: actions/upload-artifact@v4
         with:
-          name: diff-coverage-report
-          path: diff_coverage.html
-          if-no-files-found: error  # 没文件就失败，便于排查
+          name: coverage-reports
+          path: |
+            diff_coverage.html
+            htmlcov/
+          if-no-files-found: error
+
+      # 4. 卡全量覆盖率 ≥80%
+      - name: Check total coverage ≥80%
+        run: |
+          coverage report --fail-under=80
+
+      # 5. 卡增量覆盖率 ≥80%
+      - name: Check incremental coverage ≥80%
+        run: |
+          diff-cover coverage.xml \
+            --compare-branch=origin/main \
+            --fail-under=80
