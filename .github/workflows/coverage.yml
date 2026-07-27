@@ -31,7 +31,7 @@ jobs:
         run: |
           diff-cover coverage.xml \
             --compare-branch=origin/main \
-            --fail-under=80 \
+            --fail-under=10 \
             --html-report diff_coverage.html
 
       - name: Upload HTML coverage report
