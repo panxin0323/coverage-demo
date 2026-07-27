@@ -10,3 +10,5 @@ def max2(a, b):
         return a
     else:
         return b
+def add_one(x):
+    return x + 1
