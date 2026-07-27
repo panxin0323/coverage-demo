@@ -8,7 +8,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write  # 允许评论PR
+      pull-requests: write  # 必须要有，才能发评论
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,14 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest coverage diff-cover
 
-      # 1. 运行单测，生成覆盖率数据
+      # 1. 运行测试，生成覆盖率
       - name: Run tests and generate coverage
         run: |
           coverage run --source=myapp -m pytest tests/ -v
           coverage xml
           coverage html
 
-      # 2. 生成增量报告（HTML + Markdown）
+      # 2. 生成增量覆盖率报告（HTML + Markdown）
       - name: Generate incremental coverage report
         run: |
           diff-cover coverage.xml \
@@ -39,7 +39,15 @@ jobs:
             --html-report diff_coverage.html \
             --markdown-report diff_coverage.md
 
-      # 3. 上传HTML报告（可在线预览，不用解压）
+      # 3. 提取全量覆盖率并生成 summary
+      - name: Generate total coverage summary
+        run: |
+          echo "## 全量项目覆盖率" > total_coverage.md
+          coverage report -m >> total_coverage.md
+          echo -e "\n---\n" >> total_coverage.md
+          cat diff_coverage.md >> total_coverage.md
+
+      # 4. 上传 HTML 报告（可在线查看）
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
@@ -48,20 +56,20 @@ jobs:
             diff_coverage.html
             htmlcov/
 
-      # 4. 把覆盖率结果发到PR评论（简洁展示）
+      # 5. 把 全量 + 增量 一起发到 PR 评论
       - name: Post coverage to PR
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: diff_coverage.md
+          path: total_coverage.md
 
-      # 5. 卡全量覆盖率 ≥80%
-      - name: Check total coverage
+      # 6. 卡点：全量覆盖率 ≥80%
+      - name: Check total coverage ≥80%
         run: |
           coverage report --fail-under=80
 
-      # 6. 卡增量覆盖率 ≥80%
-      - name: Check incremental coverage
+      # 7. 卡点：增量覆盖率 ≥80%
+      - name: Check incremental coverage ≥80%
         run: |
           diff-cover coverage.xml \
             --compare-branch=origin/main \
-            --fail-under=40
+            --fail-under=80
