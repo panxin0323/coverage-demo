@@ -28,50 +28,44 @@ jobs:
         run: |
           coverage run --source=myapp -m pytest tests/ -v
           coverage xml
-          coverage html
 
-      # 生成增量覆盖率摘要（只保留概览，不显示具体行）
+      # 生成增量覆盖率信息，并只提取覆盖率百分比，不显示缺失行
       - name: Generate incremental coverage summary
         run: |
-          diff-cover coverage.xml \
-            --compare-branch=origin/main \
-            --html-report diff_coverage.html \
-            --markdown-report diff_coverage.md
+          diff-cover coverage.xml --compare-branch=origin/main > diff_result.txt
+          # 只提取覆盖率那一行，不显示任何文件/行号
+          grep 'Coverage:' diff_result.txt > incremental_summary.txt
 
-          # 只保留增量覆盖率概览，去掉未覆盖行详情
-          sed -i '/Missing lines/q' diff_coverage.md | head -n 20 > summary_incremental.md
-
-      # 生成简洁的全量覆盖率摘要
-      - name: Generate total coverage summary
+      # 生成简洁的全量+增量评论
+      - name: Generate PR summary
         run: |
-          cat > summary.md << 'EOF'
-          ## 📊 覆盖率摘要
-          EOF
-          echo "### 全量覆盖率" >> summary.md
-          coverage report | awk 'NR==1;END{print}' >> summary.md
-          echo -e "\n### 增量覆盖率（本次PR）" >> summary.md
-          cat summary_incremental.md >> summary.md
+          echo "## 📊 测试覆盖率摘要" > comment.md
+          echo "" >> comment.md
+          
+          echo "### 全量覆盖率" >> comment.md
+          coverage report | awk 'END{print "✅ 覆盖率: " $10}' >> comment.md
+          echo "" >> comment.md
+          
+          echo "### 增量覆盖率（本次PR）" >> comment.md
+          cat incremental_summary.txt >> comment.md
 
-      - name: Upload HTML reports
+      # 上传HTML报告（可选）
+      - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
-          path: |
-            diff_coverage.html
-            htmlcov/
+          path: "*.html"
 
-      # 只发简洁摘要到 PR 评论
-      - name: Post summary to PR
+      # 发到PR评论
+      - name: Post coverage summary to PR
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          path: summary.md
+          path: comment.md
 
-      # 卡点
+      # 全量卡点
       - name: Check total coverage ≥80%
         run: coverage report --fail-under=80
 
+      # 增量卡点
       - name: Check incremental coverage ≥80%
-        run: |
-          diff-cover coverage.xml \
-            --compare-branch=origin/main \
-            --fail-under=80
+        run: diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
