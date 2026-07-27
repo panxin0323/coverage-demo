@@ -29,43 +29,41 @@ jobs:
           coverage run --source=myapp -m pytest tests/ -v
           coverage xml
 
-      # 生成增量覆盖率信息，并只提取覆盖率百分比，不显示缺失行
+      # 提取增量覆盖率（只保留百分比）
       - name: Generate incremental coverage summary
         run: |
-          diff-cover coverage.xml --compare-branch=origin/main > diff_result.txt
-          # 只提取覆盖率那一行，不显示任何文件/行号
-          grep 'Coverage:' diff_result.txt > incremental_summary.txt
+          diff-cover coverage.xml --compare-branch=origin/main > diff.txt
+          grep "Coverage:" diff.txt | head -1 > incremental.txt
 
-      # 生成简洁的全量+增量评论
-      - name: Generate PR summary
+      # 生成干净的 PR 评论（全量 + 增量都稳定显示）
+      - name: Generate coverage comment
         run: |
           echo "## 📊 测试覆盖率摘要" > comment.md
           echo "" >> comment.md
-          
-          echo "### 全量覆盖率" >> comment.md
-          coverage report | awk 'NR==1;END{print}' >> comment.md
-          echo "" >> comment.md
-          
-          echo "### 增量覆盖率（本次PR）" >> comment.md
-          cat incremental_summary.txt >> comment.md
 
-      # 上传HTML报告（可选）
+          echo "### 全量覆盖率" >> comment.md
+          coverage report --skip-covered | grep TOTAL >> comment.md
+          echo "" >> comment.md
+
+          echo "### 增量覆盖率（本次PR）" >> comment.md
+          cat incremental.txt >> comment.md
+
+      # 上传报告
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: "*.html"
 
-      # 发到PR评论
-      - name: Post coverage summary to PR
+      # 发到 PR 评论
+      - name: Post summary to PR
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           path: comment.md
 
-      # 全量卡点
+      # 卡点
       - name: Check total coverage ≥80%
         run: coverage report --fail-under=80
 
-      # 增量卡点
       - name: Check incremental coverage ≥80%
         run: diff-cover coverage.xml --compare-branch=origin/main --fail-under=80
