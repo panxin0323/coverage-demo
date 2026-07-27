@@ -8,7 +8,7 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write  # 必须加，才能评论PR
+      pull-requests: write  # 允许评论PR
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,14 +24,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest coverage diff-cover
 
-      # 1. 运行测试，生成覆盖率
+      # 1. 运行单测，生成覆盖率数据
       - name: Run tests and generate coverage
         run: |
           coverage run --source=myapp -m pytest tests/ -v
           coverage xml
           coverage html
 
-      # 2. 生成增量 HTML 报告
+      # 2. 生成增量报告（HTML + Markdown）
       - name: Generate incremental coverage report
         run: |
           diff-cover coverage.xml \
@@ -39,7 +39,7 @@ jobs:
             --html-report diff_coverage.html \
             --markdown-report diff_coverage.md
 
-      # 3. 上传报告（仍然是zip，但可以在线预览）
+      # 3. 上传HTML报告（可在线预览，不用解压）
       - name: Upload coverage reports
         uses: actions/upload-artifact@v4
         with:
@@ -48,18 +48,18 @@ jobs:
             diff_coverage.html
             htmlcov/
 
-      # 4. 把增量覆盖率结果发到 PR 评论（不用下载，直接看）
-      - name: Post coverage summary to PR
+      # 4. 把覆盖率结果发到PR评论（简洁展示）
+      - name: Post coverage to PR
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           path: diff_coverage.md
 
-      # 5. 检查全量覆盖率
+      # 5. 卡全量覆盖率 ≥80%
       - name: Check total coverage
         run: |
           coverage report --fail-under=80
 
-      # 6. 检查增量覆盖率
+      # 6. 卡增量覆盖率 ≥80%
       - name: Check incremental coverage
         run: |
           diff-cover coverage.xml \
