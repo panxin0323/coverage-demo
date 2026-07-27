@@ -43,7 +43,7 @@ jobs:
           echo "" >> comment.md
           
           echo "### 全量覆盖率" >> comment.md
-          coverage report | awk 'END{print "✅ 覆盖率: " $10}' >> comment.md
+          coverage report | awk 'NR==1;END{print}' >> comment.md
           echo "" >> comment.md
           
           echo "### 增量覆盖率（本次PR）" >> comment.md
